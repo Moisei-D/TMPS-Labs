@@ -1,5 +1,10 @@
 # Lab 2
 
-This folder is reserved for the first design-pattern group. Copy the completed
-Lab 1 implementation here only after the permitted patterns are announced.
+Copy of the completed Lab 1 implementation, to be extended with the first
+design-pattern group.
 
+## Run
+
+```bash
+dotnet run --project Lab2
+```

@@ -24,3 +24,9 @@ the exact implementation submitted for every assignment.
 dotnet run --project Lab1
 ```
 
+
+## Run Lab 2
+
+```bash
+dotnet run --project Lab2
+```
