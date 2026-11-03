@@ -37,6 +37,8 @@ public sealed class CommandParser
             "move" or "go" => new GameCommand(CommandType.Move, argument),
             "attack" or "fight" => new GameCommand(CommandType.Attack),
             "stats" => new GameCommand(CommandType.Stats),
+            "take" or "pickup" => new GameCommand(CommandType.Take),
+            "equip" => new GameCommand(CommandType.Equip, argument),
             "help" => new GameCommand(CommandType.Help),
             "quit" or "exit" => new GameCommand(CommandType.Quit),
             _ => new GameCommand(CommandType.Unknown)

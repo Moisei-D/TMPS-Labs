@@ -6,6 +6,8 @@ public enum CommandType
     Move,
     Attack,
     Stats,
+    Take,
+    Equip,
     Help,
     Quit,
     Unknown

@@ -1,10 +1,10 @@
-using TMPSLabs.Lab2.Abstractions;
-
+using TMPSLabs.Lab2.Domain.Prototypes;
 
 namespace TMPSLabs.Lab2.Domain.Items;
 
-public interface IWeapon
+public interface IWeapon : IPrototype<IWeapon>
 {
     string Name { get; }
-    int CalculateDamage(IRandomGenerator random);
+    int MinimumDamage { get; }
+    int MaximumDamage { get; }
 }

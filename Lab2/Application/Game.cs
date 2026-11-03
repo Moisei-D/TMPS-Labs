@@ -1,5 +1,7 @@
 using TMPSLabs.Lab2.Abstractions;
+using TMPSLabs.Lab2.Configuration;
 using TMPSLabs.Lab2.Domain.Characters;
+using TMPSLabs.Lab2.Domain.Items;
 using TMPSLabs.Lab2.Domain.World;
 using TMPSLabs.Lab2.Services;
 
@@ -10,20 +12,27 @@ public sealed class Game
     private readonly Player _player;
     private readonly CommandParser _commandParser;
     private readonly CombatService _combatService;
+    private readonly MapRenderer _mapRenderer;
+    private readonly IGameConfig _config;
     private readonly IGameInput _input;
     private readonly IGameOutput _output;
     private bool _isRunning = true;
+    private bool _hasWon;
 
     public Game(
         Player player,
         CommandParser commandParser,
         CombatService combatService,
+        MapRenderer mapRenderer,
+        IGameConfig config,
         IGameInput input,
         IGameOutput output)
     {
         _player = player;
         _commandParser = commandParser;
         _combatService = combatService;
+        _mapRenderer = mapRenderer;
+        _config = config;
         _input = input;
         _output = output;
     }
@@ -31,10 +40,11 @@ public sealed class Game
     public void Run()
     {
         _output.WriteLine("Dungeon Game - Lab 2", OutputColor.Cyan);
+        ChooseDifficulty();
         _output.WriteLine("Type 'help' to see the available commands.");
         DescribeCurrentRoom();
 
-        while (_isRunning && _player.IsAlive)
+        while (_isRunning && _player.IsAlive && !_hasWon)
         {
             _output.Write("\n> ", OutputColor.Blue);
             string? input = _input.ReadLine();
@@ -51,6 +61,10 @@ public sealed class Game
         if (!_player.IsAlive)
         {
             _output.WriteLine("You have fallen in the dungeon.");
+        }
+        else if (_hasWon)
+        {
+            _output.WriteLine("The drake collapses. You conquered the dungeon!", OutputColor.Green);
         }
 
         _output.WriteLine("Game over.");
@@ -71,6 +85,12 @@ public sealed class Game
                 break;
             case CommandType.Stats:
                 ShowStats();
+                break;
+            case CommandType.Take:
+                Take();
+                break;
+            case CommandType.Equip:
+                Equip(command.Argument);
                 break;
             case CommandType.Help:
                 ShowHelp();
@@ -128,6 +148,66 @@ public sealed class Game
         }
 
         _combatService.ResolveRound(_player, enemy);
+
+        if (enemy is { IsBoss: true, IsAlive: false })
+        {
+            _hasWon = true;
+        }
+    }
+
+    private void ChooseDifficulty()
+    {
+        while (true)
+        {
+            _output.Write("Choose difficulty (easy, medium, hard): ", OutputColor.Blue);
+            string? input = _input.ReadLine();
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                _config.SetDifficulty(Difficulty.Medium);
+                break;
+            }
+
+            if (Enum.TryParse(input.Trim(), ignoreCase: true, out Difficulty difficulty))
+            {
+                _config.SetDifficulty(difficulty);
+                break;
+            }
+
+            _output.WriteLine("Unknown difficulty.", OutputColor.Red);
+        }
+
+        _output.WriteLine($"Difficulty: {_config.Difficulty}", OutputColor.Yellow);
+    }
+
+    private void Take()
+    {
+        IWeapon? weapon = _player.CurrentRoom.TakeLoot();
+
+        if (weapon is null)
+        {
+            _output.WriteLine("There is nothing here to take.");
+            return;
+        }
+
+        _player.AddWeapon(weapon);
+        _output.WriteLine(
+            $"You pick up the {weapon.Name} ({weapon.MinimumDamage}-{weapon.MaximumDamage} damage). " +
+            "Use 'equip <weapon>' to wield it.",
+            OutputColor.Yellow);
+    }
+
+    private void Equip(string? weaponName)
+    {
+        if (string.IsNullOrWhiteSpace(weaponName) || !_player.TryEquip(weaponName))
+        {
+            _output.WriteLine(
+                "You do not carry that weapon.",
+                OutputColor.Red);
+            return;
+        }
+
+        _output.WriteLine($"You wield the {_player.EquippedWeapon.Name}.", OutputColor.Yellow);
     }
 
     private void DescribeCurrentRoom()
@@ -141,6 +221,16 @@ public sealed class Game
             _output.WriteLine(
                 $"A {room.Enemy.Name} blocks your path ({room.Enemy.Health} HP).",
                 OutputColor.Red);
+        }
+
+        if (room.Loot is not null)
+        {
+            _output.WriteLine($"Loot on the floor: {room.Loot.Name}.", OutputColor.Yellow);
+        }
+
+        foreach (string line in _mapRenderer.Render(_player))
+        {
+            _output.WriteLine(line, OutputColor.Cyan);
         }
 
         string exits = string.Join(
@@ -157,7 +247,10 @@ public sealed class Game
             $"{_player.Name}: {_player.Health}/{_player.MaximumHealth} HP",
             OutputColor.Green);
         _output.WriteLine(
-            $"Weapon: {_player.EquippedWeapon.Name}",
+            "Weapons: " + string.Join(", ", _player.Inventory.Select(
+                weapon => weapon == _player.EquippedWeapon
+                    ? $"[{weapon.Name}]"
+                    : weapon.Name)),
             OutputColor.Yellow);
     }
 
@@ -165,6 +258,6 @@ public sealed class Game
     {
         _output.WriteLine(
             "Commands: look, move <direction>, north/east/south/west, " +
-            "attack, stats, help, quit");
+            "attack, take, equip <weapon>, stats, help, quit");
     }
 }
